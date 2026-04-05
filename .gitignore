@@ -1,0 +1,10 @@
+.build/
+.swiftpm/
+.claude/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+.DS_Store
+preview.png
+*.tar.gz
+ServiceManager.app/Contents/MacOS/ServiceManager
