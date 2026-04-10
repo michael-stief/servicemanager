@@ -223,6 +223,8 @@ final class EntryRowView: NSView {
     }
 }
 
+// MARK: - Text view that won't oscillate inside a scroll view
+
 // MARK: - Log Detail View
 
 final class LogDetailView: NSView {
@@ -284,20 +286,24 @@ final class LogDetailView: NSView {
         scrollView.scrollerStyle = .overlay
 
         let cs = scrollView.contentSize
+        textView.textContainerInset = NSSize(width: 6, height: 4)
         textView.frame = NSRect(origin: .zero, size: cs)
-        textView.minSize = .zero
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        textView.minSize = NSSize(width: 0, height: cs.height)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
-        textView.textContainer?.containerSize = NSSize(width: cs.width, height: .greatestFiniteMagnitude)
-        textView.textContainer?.widthTracksTextView = true
+        // Fixed container width — panel never resizes, so no tracking needed.
+        // Disabling tracking breaks the layout feedback loop that causes
+        // "failed to converge" warnings.
+        let containerWidth = cs.width - textView.textContainerInset.width * 2
+        textView.textContainer?.containerSize = NSSize(width: containerWidth, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = false
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
         textView.font = NSFont(name: "Menlo", size: 11) ?? .monospacedSystemFont(ofSize: 11, weight: .regular)
         textView.textColor = .secondaryLabelColor
-        textView.textContainerInset = NSSize(width: 6, height: 4)
 
         scrollView.documentView = textView
         addSubview(scrollView)
@@ -382,12 +388,15 @@ final class LogDetailView: NSView {
     }
 
     func updateContent(_ content: String) {
+        guard content != textView.string else {
+            updateSizeLabel()
+            return
+        }
         let atBottom = isScrolledToBottom
         textView.string = content
         updateSizeLabel()
         if atBottom {
-            let tv = textView
-            DispatchQueue.main.async { tv.scrollToEndOfDocument(nil) }
+            textView.scrollToEndOfDocument(nil)
         }
     }
 
@@ -514,6 +523,6 @@ final class SpacerView: NSView {
 
 final class ThinScroller: NSScroller {
     override class func scrollerWidth(for controlSize: NSControl.ControlSize, scrollerStyle: NSScroller.Style) -> CGFloat {
-        return 6
+        scrollerStyle == .overlay ? super.scrollerWidth(for: controlSize, scrollerStyle: scrollerStyle) : 6
     }
 }

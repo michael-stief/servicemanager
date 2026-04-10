@@ -60,7 +60,7 @@ final class ManagedTask {
         if !FileManager.default.fileExists(atPath: logPath) {
             FileManager.default.createFile(atPath: logPath, contents: nil)
         }
-        guard let handle = FileHandle(forWritingAtPath: logPath) else {
+        guard let handle = FileHandle(forUpdatingAtPath: logPath) else {
             isRunning = false
             status = .failed(-1)
             nextRun = ScriptEntry.nextFireDate(for: unit)
@@ -70,11 +70,21 @@ final class ManagedTask {
         }
         let offsetBeforeTimestamp = handle.seekToEndOfFile()
 
+        // Ensure previous output ended with a newline
+        if offsetBeforeTimestamp > 0 {
+            handle.seek(toFileOffset: offsetBeforeTimestamp - 1)
+            if handle.readData(ofLength: 1) != Data([0x0A]) {
+                handle.seekToEndOfFile()
+                handle.write(Data([0x0A]))
+            }
+        }
+        let offsetBeforeHeader = handle.seekToEndOfFile()
+
         // Write a timestamp header (removed later if no output)
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let headerData = "--- \(timestamp) ---\n".data(using: .utf8)!
         handle.write(headerData)
-        let offsetAfterTimestamp = offsetBeforeTimestamp + UInt64(headerData.count)
+        let offsetAfterTimestamp = offsetBeforeHeader + UInt64(headerData.count)
 
         proc.standardOutput = handle
         proc.standardError = handle
@@ -90,7 +100,7 @@ final class ManagedTask {
                 // Perform FileHandle operations on main thread where we own the handle
                 let finalOffset = handle.seekToEndOfFile()
                 if finalOffset == offsetAfterTimestamp {
-                    handle.truncateFile(atOffset: offsetBeforeTimestamp)
+                    handle.truncateFile(atOffset: offsetBeforeHeader)
                 }
                 try? handle.close()
 
