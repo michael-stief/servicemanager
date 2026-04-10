@@ -58,41 +58,29 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let s: CGFloat = 18
         let image = NSImage(size: NSSize(width: s, height: s), flipped: false) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            let cx = s / 2, cy = s / 2, r: CGFloat = 6.5
+            let cx = s / 2 - 1.0, cy = s / 2, r: CGFloat = 6.5
             let lineW: CGFloat = 1.6
 
             ctx.setStrokeColor(NSColor.black.cgColor)
             ctx.setLineWidth(lineW)
             ctx.setLineCap(.round)
 
-            // Gap on the right side (3 o'clock / 0°), arc goes clockwise
-            // Arrow at the bottom of the gap, pointing into the gap (upward on the right)
-            let gapHalf: CGFloat = .pi / 6  // 30° half-gap
-            let arcStart: CGFloat = -gapHalf          // -30° (bottom of gap)
-            let arcEnd: CGFloat = gapHalf              // +30° (top of gap)
-
-            // Draw the long way: from arcStart going clockwise to arcEnd
+            // Arc: bottom to right, the long way (through left and top)
+            // Bottom-right quarter is the gap
             ctx.addArc(center: CGPoint(x: cx, y: cy), radius: r,
-                       startAngle: arcStart, endAngle: arcEnd, clockwise: true)
+                       startAngle: -.pi / 2, endAngle: 0, clockwise: true)
             ctx.strokePath()
 
-            // Arrowhead: base sits on arcEnd, tip points clockwise into gap
-            let baseAngle = arcEnd
-            let arrowLen: CGFloat = 3.8
-            let halfBase: CGFloat = lineW * 0.85
-
-            let tangent = baseAngle - .pi / 2  // clockwise tangent
-            let tipX = cx + r * cos(baseAngle) + arrowLen * cos(tangent)
-            let tipY = cy + r * sin(baseAngle) + arrowLen * sin(tangent)
-            let w1x = cx + (r + halfBase) * cos(baseAngle)
-            let w1y = cy + (r + halfBase) * sin(baseAngle)
-            let w2x = cx + (r - halfBase) * cos(baseAngle)
-            let w2y = cy + (r - halfBase) * sin(baseAngle)
+            // Arrow: straight down at the right end of the arc
+            let arrowLen: CGFloat = 4.5
+            let halfBase: CGFloat = lineW * 2.2
+            let pad: CGFloat = -0.2
+            let ax = cx + r
 
             ctx.setFillColor(NSColor.black.cgColor)
-            ctx.move(to: CGPoint(x: tipX, y: tipY))
-            ctx.addLine(to: CGPoint(x: w1x, y: w1y))
-            ctx.addLine(to: CGPoint(x: w2x, y: w2y))
+            ctx.move(to: CGPoint(x: ax, y: cy - pad - arrowLen))
+            ctx.addLine(to: CGPoint(x: ax - halfBase, y: cy - pad))
+            ctx.addLine(to: CGPoint(x: ax + halfBase, y: cy - pad))
             ctx.closePath()
             ctx.fillPath()
 
