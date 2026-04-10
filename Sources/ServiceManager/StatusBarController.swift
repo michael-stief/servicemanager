@@ -301,7 +301,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 case .neverRun: color = .systemGray; detail = sched
                 case .success: color = .systemGreen; detail = sched
                 case .failed(let c): color = .systemRed; detail = "exit \(c)"
-                case .running: color = .systemBlue; detail = "running"
+                case .running:
+                    color = .systemBlue
+                    if let p = task.process { detail = "pid \(p.processIdentifier)" } else { detail = "running" }
                 }
 
                 let nextRun = task.nextRun
@@ -318,7 +320,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                     if let entry { self?.hoveredEntry = entry; self?.showLogForEntry(entry) }
                 }
                 row.onAction = { [weak self] in
-                    ScheduledTaskRunner.shared.forceRun(fname)
+                    if task.isRunning {
+                        ScheduledTaskRunner.shared.forceStop(fname)
+                    } else {
+                        ScheduledTaskRunner.shared.forceRun(fname)
+                    }
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 300_000_000)
                         self?.rebuildLeft()

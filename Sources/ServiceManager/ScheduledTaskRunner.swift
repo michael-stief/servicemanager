@@ -131,14 +131,28 @@ final class ManagedTask {
         }
     }
 
+    func forceStop() {
+        guard let proc = process, proc.isRunning else { return }
+        let pid = proc.processIdentifier
+        kill(-pid, SIGTERM)
+        proc.terminate()
+        let p = proc
+        // Escalate: SIGQUIT after 3s, SIGKILL after 6s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if p.isRunning { kill(-pid, SIGQUIT) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            if p.isRunning {
+                kill(-pid, SIGKILL)
+                kill(pid, SIGKILL)
+            }
+        }
+    }
+
     func cancel() {
         timer?.cancel()
         timer = nil
-        if let proc = process, proc.isRunning {
-            let pid = proc.processIdentifier
-            kill(-pid, SIGTERM)
-            proc.terminate()
-        }
+        forceStop()
     }
 }
 
@@ -162,6 +176,10 @@ final class ScheduledTaskRunner {
 
     func forceRun(_ filename: String) {
         tasks[filename]?.forceRun()
+    }
+
+    func forceStop(_ filename: String) {
+        tasks[filename]?.forceStop()
     }
 
     func shutdownAll() {
